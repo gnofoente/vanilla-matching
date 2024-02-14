@@ -3,6 +3,7 @@ function MatchingGame() {
   this.matchedPairIds = [];
   this.boardArray = [];
   this.isClickBlocked = false;
+  this.boardElement = document.getElementById("board");
 
   // Matching game
   // Render the board randomly for a new game:
@@ -15,25 +16,24 @@ function MatchingGame() {
         "\nNote: there are 6 images and 12 tiles," +
         "you need to render the pairs randomly.",
     );
+    this.boardElement.textContent = "";
     const availableCards = [];
-
     for (let i = 1; i <= 6; i++) {
-      availableCards.push(makeCard(i));
-      availableCards.push(makeCard(i));
+      availableCards.push(new Card(i, this));
+      availableCards.push(new Card(i, this));
     }
 
     for (let i = 0; i < 12; i++) {
       this.boardArray.push(fetchRandomCard(availableCards));
     }
 
-    const boardElement = document.getElementById("board");
     const wrapper = document.createElement("div");
 
-    this.boardArray.forEach((element) => {
-      wrapper.appendChild(element);
+    this.boardArray.forEach((card) => {
+      wrapper.appendChild(card.getElement());
     });
 
-    boardElement.appendChild(wrapper);
+    this.boardElement.appendChild(wrapper);
   };
 
   const fetchRandomCard = (availableCards) => {
@@ -49,76 +49,34 @@ function MatchingGame() {
     return Math.floor(Math.random() * (max - min) + min);
   };
 
-  const onCardClick = (e) => {
-    // 1. flip the card over
-    // 2. check for a matching pair
-    //    a. if they match leave them flipped up but disable click events.
-    //    a. if they don't match flip them back over.
-    // 3. check to see if the game is over
-    if (this.isClickBlocked) return;
-    let isFlipped = e.target.className.includes("flipped-up");
-
-    if (isFlipped) {
-      let filtered = this.flippedCards.filter((card) => card.id != e.target.id);
-      this.flippedCards = [...filtered];
-    } else {
-      this.flippedCards.push(e.target);
-    }
-
-    console.log(this.flippedCards);
-
-    flipCard(e.target);
-
-    if (this.flippedCards.length < 2) return;
-
-    if (isMatchingPair()) {
-      this.flippedCards.forEach((card) => {
-        card.onclick = null;
-        this.flippedCards = [];
-        this.matchedPairIds.push(card.id);
-      });
-    } else {
-      this.isClickBlocked = true;
-      window.setTimeout(() => {
-        this.flippedCards.forEach((card) => {
-          card.style.transform = "matrix(0.001, 0, 0, 1, 0, 0)";
-          window.setTimeout(() => {
-            card.style.transform = "";
-            card.classList.toggle("flipped-up");
-          }, 150);
-        });
-        this.isClickBlocked = false;
-        this.flippedCards = [];
-      }, 1500);
-    }
-
-    if (isGameOver()) {
-      window.alert("you won!");
-    }
-  };
-
-  const makeCard = (cardNumber) => {
-    const cardElement = document.createElement("div");
-    cardElement.id = cardNumber;
-    cardElement.className = "card image-" + cardNumber;
-    cardElement.onclick = onCardClick;
-    return cardElement;
-  };
-
-  const flipCard = (element) => {
-    element.style.transform = "matrix(0.001, 0, 0, 1, 0, 0)";
-    window.setTimeout(() => {
-      element.style.transform = "";
-      element.classList.toggle("flipped-up");
-    }, 150);
-    console.info("A selected card needs to have the flipped-up CSS class.");
-  };
-
   const isMatchingPair = () => {
     console.info("If the pair match, return true, else return false.");
-    console.log(this.flippedCards);
     if (this.flippedCards.length != 2) return;
     return this.flippedCards[0].id === this.flippedCards[1].id;
+  };
+
+  const handleMatchingPairs = () => {
+    this.flippedCards.forEach((card) => {
+      card.element.onclick = null;
+      this.flippedCards = [];
+      this.matchedPairIds.push(card.id);
+    });
+  };
+
+  const handleNotMatchingPairs = () => {
+    this.isClickBlocked = !this.isClickBlocked;
+    window.setTimeout(() => {
+      const cardFlipPromises = [];
+
+      this.flippedCards.forEach((card) => {
+        cardFlipPromises.push(card.flip());
+      });
+
+      Promise.all(cardFlipPromises).then(() => {
+        this.isClickBlocked = !this.isClickBlocked;
+        this.flippedCards = [];
+      });
+    }, 1500);
   };
 
   const isGameOver = () => {
@@ -129,17 +87,66 @@ function MatchingGame() {
     return this.matchedPairIds.length == this.boardArray.length;
   };
 
+  this.handleFlippedCardPool = (card) => {
+    let cardElement = card.getElement();
+    let isFlipped = cardElement.className.includes("flipped-up");
+    if (isFlipped) {
+      let filtered = this.flippedCards.filter((c) => c.id != cardElement.id);
+      this.flippedCards = [...filtered];
+      return;
+    }
+    this.flippedCards.push(card);
+  };
+
+  this.handlePlay = () => {
+    if (this.flippedCards.length < 2) return;
+
+    if (isMatchingPair()) {
+      handleMatchingPairs();
+      if (isGameOver()) {
+        if (window.confirm("You win! Want to play again?")) {
+          new MatchingGame();
+        }
+      }
+      return;
+    }
+    handleNotMatchingPairs();
+  };
+
   renderBoard();
 }
 
-// Bonus: animate the card flipping up and flipping back down
-// Note: this can be done using either JS or CSS.
+function Card(id, game) {
+  const createElement = () => {
+    const el = document.createElement("div");
+    el.id = this.id;
+    el.className = "card image-" + this.id;
+    el.onclick = handleClick;
+    return el;
+  };
 
-// Start the game on page load
-/*(function () {
-  console.clear();
-  renderBoard();
-})();*/
+  const handleClick = (e) => {
+    if (this.game.isClickBlocked) return;
+    this.game.handleFlippedCardPool(this);
+    this.flip().then(this.game.handlePlay);
+  };
+
+  this.flip = () => {
+    this.element.style.transform = "matrix(1, 0, 0, 0.001, 0, 0)";
+    return new Promise((resolve) => {
+      window.setTimeout(() => {
+        this.element.style.transform = "";
+        this.element.classList.toggle("flipped-up");
+        window.setTimeout(resolve, 200); // waits until the 'transform' animation finishes
+      }, 200);
+    });
+  };
+
+  this.id = id;
+  this.element = createElement();
+  this.game = game;
+  this.getElement = () => this.element;
+}
 
 (function () {
   console.clear();
