@@ -1,0 +1,49 @@
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width" />
+        <title>Gus' Matching Game</title>
+        <style>
+            .card {
+                display: inline-block;
+                width: 125px;
+                height: 172px;
+
+                background-image: url("https://i.imgur.com/r9CqaTr.jpg");
+                background-repeat: no-repeat;
+                background-position: -375px -172px;
+                transition: transform ease-in 150ms;
+            }
+
+            .flipped-up.image-1 {
+                background-position: 0 0;
+            }
+
+            .flipped-up.image-2 {
+                background-position: -125px 0;
+            }
+
+            .flipped-up.image-3 {
+                background-position: -250px 0;
+            }
+
+            .flipped-up.image-4 {
+                background-position: 0 -172px;
+            }
+
+            .flipped-up.image-5 {
+                background-position: -125px -172px;
+            }
+
+            .flipped-up.image-6 {
+                background-position: -250px -172px;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div id="board"></div>
+    </body>
+
+    <script src="index.js"></script>
+</html>
